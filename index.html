@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>销售管理系统 - 订单到交付</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2332;
+    --border: #1e293b;
+    --border-light: #2a3a4e;
+    --cyan: #00d4ff;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --muted2: #64748b;
+  }
+
+  body {
+    font-family: 'Noto Sans SC', 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .app { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+  .header {
+    padding: 24px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); margin-bottom: 24px;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+  .header h1 .dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--green);
+    margin-right: 10px; animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .header-actions { display: flex; gap: 10px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    font-family: inherit; color: var(--text); background: var(--surface); white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--border-light); background: var(--surface2); }
+  .btn-primary { background: var(--cyan); color: #000; border-color: var(--cyan); font-weight: 600; }
+  .btn-primary:hover { opacity: 0.85; background: var(--cyan); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 5px; }
+  .btn-success { border-color: var(--green); color: var(--green); }
+  .btn-success:hover { background: rgba(16,185,129,0.1); }
+  .btn-warning { border-color: var(--orange); color: var(--orange); }
+  .btn-warning:hover { background: rgba(245,158,11,0.1); }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+  .tabs { display: flex; gap: 0; margin-bottom: 24px; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border);
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    background: var(--surface); color: var(--muted); font-family: inherit;
+  }
+  .tab:first-child { border-radius: 8px 0 0 8px; }
+  .tab:last-child { border-radius: 0 8px 8px 0; }
+  .tab:not(:first-child) { margin-left: -1px; }
+  .tab.active { background: var(--cyan); color: #000; border-color: var(--cyan); z-index: 1; position: relative; }
+  .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .stat-card .stat-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .stat-card .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .toolbar-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .search-input {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 13px;
+    font-family: inherit; min-width: 200px; outline: none;
+  }
+  .search-input:focus { border-color: var(--cyan); }
+  .search-input::placeholder { color: var(--muted2); }
+
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border);
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+    background: var(--surface); color: var(--muted);
+  }
+  .chip.active { background: rgba(0,212,255,0.12); color: var(--cyan); border-color: rgba(0,212,255,0.3); }
+  .chip:hover:not(.active) { border-color: var(--border-light); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
+  th, td { padding: 12px 16px; text-align: left; white-space: nowrap; }
+  th { background: var(--surface); color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .empty-row td { text-align: center; color: var(--muted2); padding: 48px 16px; }
+  .empty-row:hover td { background: transparent; }
+
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 500; white-space: nowrap;
+  }
+  .badge-pending { background: rgba(148,163,184,0.12); color: #94a3b8; }
+  .badge-confirmed { background: rgba(0,212,255,0.12); color: var(--cyan); }
+  .badge-shipping { background: rgba(245,158,11,0.12); color: var(--orange); }
+  .badge-delivered { background: rgba(16,185,129,0.12); color: var(--green); }
+  .badge-cancelled { background: rgba(239,68,68,0.12); color: var(--red); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: flex-start; justify-content: center;
+    padding: 60px 20px; overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; width: 100%; max-width: 640px;
+    animation: slideUp 0.2s ease; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.3px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 9px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font-size: 13px; font-family: inherit;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--cyan); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .order-items { margin-top: 8px; }
+  .order-item-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 40px;
+    gap: 8px; align-items: end; margin-bottom: 8px;
+  }
+  .order-items-summary {
+    text-align: right; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--border); font-size: 15px; font-weight: 600;
+  }
+
+  .timeline { display: flex; gap: 0; margin: 20px 0; }
+  .tl-step {
+    flex: 1; text-align: center; position: relative;
+    padding: 12px 8px; font-size: 12px; color: var(--muted2);
+    border-top: 3px solid var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .tl-step.done { color: var(--green); border-top-color: var(--green); }
+  .tl-step.current { color: var(--cyan); border-top-color: var(--cyan); font-weight: 600; }
+  .tl-step .tl-icon { display: block; font-size: 18px; margin-bottom: 4px; }
+
+  .toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    padding: 12px 24px; border-radius: 10px; font-size: 14px;
+    z-index: 200; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+    background: var(--surface2); border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.show { opacity: 1; }
+
+  .actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  @media (max-width: 768px) {
+    .header { flex-direction: column; align-items: flex-start; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .order-item-row { grid-template-columns: 1fr 1fr 1fr; }
+    .order-item-row .oi-name { grid-column: 1 / -1; }
+    .timeline { flex-direction: column; }
+    .tl-step { border-top: none; border-left: 3px solid var(--border); text-align: left; padding: 8px 12px; }
+    .toolbar { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1><span class="dot"></span>销售管理系统</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="exportData()">📤 导出数据</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  </div>
+
+  <div class="stats-bar" id="statsBar"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="orders">📋 订单管理</button>
+    <button class="tab" data-tab="products">📦 产品管理</button>
+    <button class="tab" data-tab="customers">👥 客户管理</button>
+  </div>
+
+  <!-- 订单管理 -->
+  <div class="tab-content active" id="tab-orders">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn btn-primary" onclick="openOrderModal()">＋ 新建订单</button>
+        <div class="filter-chips" id="orderFilters">
+          <span class="chip active" data-status="all">全部</span>
+          <span class="chip" data-status="pending">待确认</span>
+          <span class="chip" data-status="confirmed">已确认</span>
+          <span class="chip" data-status="shipping">发货中</span>
+          <span class="chip" data-status="delivered">已交付</span>
+        </div>
+      </div>
+      <input class="search-input" placeholder="搜索订单号 / 客户名..." id="orderSearch" oninput="renderOrders()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>订单编号</th><th>客户</th><th>金额</th><th>状态</th><th>创建时间</th><th>交付日期</th><th>操作</th></tr>
+        </thead>
+        <tbody id="orderTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 产品管理 -->
+  <div class="tab-content" id="tab-products">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openProductModal()">＋ 新增产品</button>
+      <input class="search-input" placeholder="搜索产品名称 / SKU..." id="productSearch" oninput="renderProducts()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>产品名称</th><th>单价 (¥)</th><th>库存</th><th>单位</th><th>操作</th></tr></thead>
+        <tbody id="productTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 客户管理 -->
+  <div class="tab-content" id="tab-customers">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openCustomerModal()">＋ 新增客户</button>
+      <input class="search-input" placeholder="搜索客户名称 / 电话..." id="customerSearch" oninput="renderCustomers()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>客户名称</th><th>联系人</th><th>电话</th><th>地址</th><th>备注</th><th>操作</th></tr></thead>
+        <tbody id="customerTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 订单弹窗 -->
+<div class="modal-overlay" id="orderModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="orderModalTitle">新建订单</h3>
+      <button class="modal-close" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>客户</label><select id="orderCustomer"><option value="">请选择客户</option></select></div>
+        <div class="form-group"><label>状态</label><select id="orderStatus"><option value="pending">待确认</option><option value="confirmed">已确认</option><option value="shipping">发货中</option><option value="delivered">已交付</option><option value="cancelled">已取消</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>预计交付日期</label><input type="date" id="orderDeliveryDate"></div>
+      </div>
+      <div class="form-group">
+        <label>订单明细</label>
+        <div class="order-items" id="orderItems"></div>
+        <button class="btn btn-sm" style="margin-top:8px" onclick="addOrderItem()">＋ 添加产品</button>
+      </div>
+      <div class="order-items-summary" id="orderTotal">合计：¥0.00</div>
+      <div class="form-group"><label>备注</label><textarea id="orderNotes" rows="2" placeholder="选填"></textarea></div>
+      <div id="orderTimeline" style="display:none">
+        <label style="font-size:13px;color:var(--muted);margin-bottom:8px;display:block;">状态流转（点击下一步推进）</label>
+        <div class="timeline">
+          <div class="tl-step" data-status="pending"><span class="tl-icon">📝</span>待确认</div>
+          <div class="tl-step" data-status="confirmed"><span class="tl-icon">✅</span>已确认</div>
+          <div class="tl-step" data-status="shipping"><span class="tl-icon">🚚</span>发货中</div>
+          <div class="tl-step" data-status="delivered"><span class="tl-icon">📬</span>已交付</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeOrderModal()">取消</button>
+      <button class="btn btn-primary" id="orderSaveBtn" onclick="saveOrder()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 产品弹窗 -->
+<div class="modal-overlay" id="productModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="productModalTitle">新增产品</h3>
+      <button class="modal-close" onclick="closeProductModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>SKU</label><input id="productSku" placeholder="例如：PRD-001"></div>
+        <div class="form-group"><label>产品名称</label><input id="productName" placeholder="产品名称"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>单价 (¥)</label><input type="number" id="productPrice" step="0.01" min="0" placeholder="0.00"></div>
+        <div class="form-group"><label>库存数量</label><input type="number" id="productStock" min="0" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label>单位</label><input id="productUnit" placeholder="件 / 箱 / kg..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeProductModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 客户弹窗 -->
+<div class="modal-overlay" id="customerModalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="customerModalTitle">新增客户</h3>
+      <button class="modal-close" onclick="closeCustomerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>客户名称</label><input id="customerCName" placeholder="公司/个人名称"></div>
+        <div class="form-group"><label>联系人</label><input id="customerContact" placeholder="联系人姓名"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>电话</label><input id="customerPhone" placeholder="手机/座机"></div>
+        <div class="form-group"><label>地址</label><input id="customerAddress" placeholder="地址"></div>
+      </div>
+      <div class="form-group"><label>备注</label><textarea id="customerNotes" rows="2" placeholder="选填"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCustomerModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   DATA LAYER — localStorage CRUD
+   ================================================================ */
+const STORE = {
+  _load(k, fallback) {
+    try { return JSON.parse(localStorage.getItem(k)) || fallback; }
+    catch { return fallback; }
+  },
+  _save(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+
+  orders()    { return this._load('sales_orders', []); },
+  products()  { return this._load('sales_products', []); },
+  customers() { return this._load('sales_customers', []); },
+
+  saveOrders(v)    { this._save('sales_orders', v); },
+  saveProducts(v)  { this._save('sales_products', v); },
+  saveCustomers(v) { this._save('sales_customers', v); },
+};
+
+/* ================================================================
+   HELPERS
+   ================================================================ */
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const genOrderNo = () => 'ORD-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(Math.floor(Math.random()*9000+1000));
+const fmtMoney = n => '¥' + Number(n).toFixed(2);
+const fmtDate = s => s ? new Date(s).toLocaleDateString('zh-CN') : '-';
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ================================================================
+   SEED DATA
+   ================================================================ */
+function initSeedData() {
+  if (STORE.products().length > 0) return;
+
+  const products = [
+    { id: genId(), sku: 'PRD-001', name: '无线蓝牙耳机', price: 299, stock: 150, unit: '件' },
+    { id: genId(), sku: 'PRD-002', name: '机械键盘 K8', price: 459, stock: 80, unit: '件' },
+    { id: genId(), sku: 'PRD-003', name: '4K显示器 27寸', price: 2499, stock: 35, unit: '台' },
+    { id: genId(), sku: 'PRD-004', name: 'Type-C数据线', price: 29.9, stock: 500, unit: '根' },
+    { id: genId(), sku: 'PRD-005', name: '笔记本支架', price: 129, stock: 200, unit: '个' },
+  ];
+  STORE.saveProducts(products);
+
+  const customers = [
+    { id: genId(), name: '星辰科技有限公司', contact: '张经理', phone: '138****6789', address: '北京市朝阳区望京SOHO', notes: '长期合作客户' },
+    { id: genId(), name: '云帆网络技术', contact: '李总', phone: '139****8901', address: '上海市浦东新区张江高科技园区', notes: '' },
+    { id: genId(), name: '启明电子商务', contact: '王女士', phone: '136****0123', address: '深圳市南山区科技园', notes: '月结客户' },
+    { id: genId(), name: '鸿图贸易有限公司', contact: '赵先生', phone: '137****4567', address: '广州市天河区珠江新城', notes: '' },
+  ];
+  STORE.saveCustomers(customers);
+
+  const c = customers;
+  const p = products;
+  const orders = [
+    {
+      id: genId(), orderNo: 'ORD-20260521-1001', customerId: c[0].id,
+      items: [{ productId: p[0].id, productName: p[0].name, qty: 5, unitPrice: p[0].price }],
+      totalAmount: p[0].price * 5, status: 'delivered',
+      statusHistory: [
+        { status: 'pending', timestamp: '2026-05-21T09:00:00', note: '订单创建' },
+        { status: 'confirmed', timestamp: '2026-05-21T10:30:00', note: '已确认' },
+        { status: 'shipping', timestamp: '2026-05-22T08:00:00', note: '顺丰速运 SF1234567890' },
+        { status: 'delivered', timestamp: '2026-05-23T14:20:00', note: '已签收' },
+      ],
+      createdAt: '2026-05-21T09:00:00', deliveryDate: '2026-05-23', notes: ''
+    },
+    {
+      id: genId(), orderNo: 'ORD-20260522-1002', customerId: c[1].id,
+      items: [
+        { productId: p[1].id, productName: p[1].name, qty: 2, unitPrice: p[1].price },
+        { productId: p[3].id, productName: p[3].name, qty: 10, unitPrice: p[3].price },
+      ],
+      totalAmount: p[1].price * 2 + p[3].price * 10, status: 'shipping',
+      statusHistory: [
+        { status: 'pending', timestamp: '2026-05-22T11:00:00', note: '订单创建' },
+        { status: 'confirmed', timestamp: '2026-05-22T13:00:00', note: '已确认' },
+        { status: 'shipping', timestamp: '2026-05-23T09:30:00', note: '中通快递 ZT0987654321' },
+      ],
+      createdAt: '2026-05-22T11:00:00', deliveryDate: '2026-05-25', notes: '请在工作时间配送'
+    },
+    {
+      id: genId(), orderNo: 'ORD-20260523-1003', customerId: c[2].id,
+      items: [{ productId: p[2].id, productName: p[2].name, qty: 1, unitPrice: p[2].price }],
+      totalAmount: p[2].price, status: 'pending',
+      statusHistory: [{ status: 'pending', timestamp: '2026-05-23T15:00:00', note: '订单创建' }],
+      createdAt: '2026-05-23T15:00:00', deliveryDate: '2026-05-27', notes: '急单'
+    },
+  ];
+  STORE.saveOrders(orders);
+}
+
+/* ================================================================
+   STATS BAR
+   ================================================================ */
+function renderStats() {
+  const orders = STORE.orders();
+  const stats = { all: orders.length, pending:0, confirmed:0, shipping:0, delivered:0, cancelled:0, totalAmount:0 };
+  orders.forEach(o => { stats[o.status] = (stats[o.status]||0) + 1; if (o.status !== 'cancelled') stats.totalAmount += o.totalAmount; });
+  document.getElementById('statsBar').innerHTML = [
+    { v: stats.all, l: '全部订单', c: 'var(--text)' },
+    { v: stats.pending, l: '待确认', c: 'var(--muted)' },
+    { v: stats.confirmed, l: '已确认', c: 'var(--cyan)' },
+    { v: stats.shipping, l: '发货中', c: 'var(--orange)' },
+    { v: stats.delivered, l: '已交付', c: 'var(--green)' },
+    { v: fmtMoney(stats.totalAmount), l: '有效订单总额', c: 'var(--purple)' },
+  ].map(s => `<div class="stat-card"><div class="stat-value" style="color:${s.c}">${s.v}</div><div class="stat-label">${s.l}</div></div>`).join('');
+}
+
+/* ================================================================
+   ORDERS
+   ================================================================ */
+let orderFilter = 'all';
+let editingOrderId = null;
+
+document.getElementById('orderFilters').addEventListener('click', e => {
+  if (!e.target.classList.contains('chip')) return;
+  document.querySelectorAll('#orderFilters .chip').forEach(c => c.classList.remove('active'));
+  e.target.classList.add('active');
+  orderFilter = e.target.dataset.status;
+  renderOrders();
+});
+
+function renderOrders() {
+  let orders = STORE.orders();
+  const search = document.getElementById('orderSearch').value.toLowerCase();
+  if (orderFilter !== 'all') orders = orders.filter(o => o.status === orderFilter);
+  if (search) {
+    orders = orders.filter(o => {
+      const cust = STORE.customers().find(c => c.id === o.customerId);
+      return o.orderNo.toLowerCase().includes(search) || (cust && cust.name.toLowerCase().includes(search));
+    });
+  }
+
+  const tbody = document.getElementById('orderTableBody');
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">暂无订单数据</td></tr>';
+  } else {
+    tbody.innerHTML = orders.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(o => {
+      const cust = STORE.customers().find(c => c.id === o.customerId);
+      return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-weight:500;">${esc(o.orderNo)}</td>
+        <td>${cust ? esc(cust.name) : '<span style="color:var(--muted2)">未知客户</span>'}</td>
+        <td style="font-weight:600;">${fmtMoney(o.totalAmount)}</td>
+        <td>${statusBadge(o.status)}</td>
+        <td>${fmtDate(o.createdAt)}</td>
+        <td>${fmtDate(o.deliveryDate)}</td>
+        <td><div class="actions">${actionButtons(o)}</div></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function statusBadge(s) {
+  const map = {
+    pending: ['待确认','pending'], confirmed: ['已确认','confirmed'],
+    shipping: ['发货中','shipping'], delivered: ['已交付','delivered'],
+    cancelled: ['已取消','cancelled']
+  };
+  const [label, cls] = map[s] || ['未知','pending'];
+  return `<span class="badge badge-${cls}">${label}</span>`;
+}
+
+function statusName(s) {
+  const map = { pending:'待确认', confirmed:'已确认', shipping:'发货中', delivered:'已交付', cancelled:'已取消' };
+  return map[s] || s;
+}
+
+function actionButtons(o) {
+  let btns = `<button class="btn btn-xs" onclick="openOrderModal('${o.id}')">查看</button>`;
+  if (o.status === 'pending') {
+    btns += `<button class="btn btn-xs btn-success" onclick="changeStatus('${o.id}','confirmed')">确认</button>`;
+    btns += `<button class="btn btn-xs btn-danger" onclick="changeStatus('${o.id}','cancelled')">取消</button>`;
+  }
+  if (o.status === 'confirmed') {
+    btns += `<button class="btn btn-xs btn-warning" onclick="changeStatus('${o.id}','shipping')">发货</button>`;
+  }
+  if (o.status === 'shipping') {
+    btns += `<button class="btn btn-xs btn-success" onclick="changeStatus('${o.id}','delivered')">标记交付</button>`;
+  }
+  btns += `<button class="btn btn-xs btn-danger" onclick="deleteOrder('${o.id}')">删除</button>`;
+  return btns;
+}
+
+function changeStatus(id, newStatus) {
+  const noteMap = { confirmed: '已确认', shipping: '已发货', delivered: '已签收交付', cancelled: '已取消' };
+  const orders = STORE.orders();
+  const idx = orders.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  orders[idx].status = newStatus;
+  orders[idx].statusHistory.push({ status: newStatus, timestamp: new Date().toISOString(), note: noteMap[newStatus] || '' });
+  STORE.saveOrders(orders);
+  renderOrders();
+  renderStats();
+  showToast('订单状态已更新为「' + statusName(newStatus) + '」');
+}
+
+function deleteOrder(id) {
+  if (!confirm('确定要删除此订单吗？此操作不可撤销。')) return;
+  STORE.saveOrders(STORE.orders().filter(o => o.id !== id));
+  renderOrders();
+  renderStats();
+  showToast('订单已删除');
+}
+
+function openOrderModal(id) {
+  editingOrderId = id || null;
+  document.getElementById('orderModalOverlay').classList.add('open');
+  document.getElementById('orderModalTitle').textContent = id ? '编辑订单' : '新建订单';
+  document.getElementById('orderTimeline').style.display = id ? 'block' : 'none';
+
+  const sel = document.getElementById('orderCustomer');
+  sel.innerHTML = '<option value="">请选择客户</option>' +
+    STORE.customers().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+  if (id) {
+    const o = STORE.orders().find(o => o.id === id);
+    if (!o) return;
+    document.getElementById('orderCustomer').value = o.customerId;
+    document.getElementById('orderStatus').value = o.status;
+    document.getElementById('orderDeliveryDate').value = o.deliveryDate || '';
+    document.getElementById('orderNotes').value = o.notes || '';
+    renderOrderItems(o.items);
+    renderTimeline(o);
+  } else {
+    document.getElementById('orderStatus').value = 'pending';
+    document.getElementById('orderDeliveryDate').value = '';
+    document.getElementById('orderNotes').value = '';
+    renderOrderItems([]);
+    renderTimeline(null);
+  }
+  updateOrderTotal();
+}
+
+function closeOrderModal() {
+  document.getElementById('orderModalOverlay').classList.remove('open');
+  editingOrderId = null;
+}
+
+function renderOrderItems(items) {
+  const container = document.getElementById('orderItems');
+  const products = STORE.products();
+  const options = products.map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.sku)}) — ¥${p.price}</option>`).join('');
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="order-item-row">
+      <select class="oi-product">${options}</select>
+      <input type="number" class="oi-qty" value="1" min="1" placeholder="数量" onchange="updateOrderTotal()" oninput="updateOrderTotal()">
+      <input type="number" class="oi-price" placeholder="单价" step="0.01" onchange="updateOrderTotal()" oninput="updateOrderTotal()" readonly style="background:var(--surface2)">
+      <span style="font-size:13px;color:var(--muted);align-self:center;">小计</span>
+      <button class="btn btn-xs btn-danger" onclick="removeOrderItem(this)">✕</button>
+    </div>`;
+    const sel = container.querySelector('.oi-product');
+    if (sel && products.length > 0) {
+      sel.addEventListener('change', function() { updateProductPrice(this); });
+      const p = products[0];
+      container.querySelector('.oi-price').value = p.price;
+    }
+  } else {
+    container.innerHTML = items.map(item => {
+      const opt = products.map(p => `<option value="${p.id}" ${p.id===item.productId?'selected':''}>${esc(p.name)} (${esc(p.sku)}) — ¥${p.price}</option>`).join('');
+      return `<div class="order-item-row">
+        <select class="oi-product">${opt}</select>
+        <input type="number" class="oi-qty" value="${item.qty}" min="1" placeholder="数量" onchange="updateOrderTotal()" oninput="updateOrderTotal()">
+        <input type="number" class="oi-price" value="${item.unitPrice}" placeholder="单价" step="0.01" onchange="updateOrderTotal()" oninput="updateOrderTotal()">
+        <span style="font-size:13px;color:var(--muted);align-self:center;">${fmtMoney(item.qty*item.unitPrice)}</span>
+        <button class="btn btn-xs btn-danger" onclick="removeOrderItem(this)">✕</button>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('.oi-product').forEach(sel => {
+      sel.addEventListener('change', function() { updateProductPrice(this); });
+    });
+  }
+}
+
+function updateProductPrice(selectEl) {
+  const p = STORE.products().find(p => p.id === selectEl.value);
+  if (p) {
+    selectEl.closest('.order-item-row').querySelector('.oi-price').value = p.price;
+    updateOrderTotal();
+  }
+}
+
+function addOrderItem() {
+  const products = STORE.products();
+  if (products.length === 0) { showToast('请先添加产品'); return; }
+  const container = document.getElementById('orderItems');
+  const options = products.map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.sku)}) — ¥${p.price}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'order-item-row';
+  div.innerHTML = `
+    <select class="oi-product">${options}</select>
+    <input type="number" class="oi-qty" value="1" min="1" placeholder="数量" onchange="updateOrderTotal()" oninput="updateOrderTotal()">
+    <input type="number" class="oi-price" value="${products[0].price}" placeholder="单价" step="0.01" onchange="updateOrderTotal()" oninput="updateOrderTotal()">
+    <span style="font-size:13px;color:var(--muted);align-self:center;">${fmtMoney(products[0].price)}</span>
+    <button class="btn btn-xs btn-danger" onclick="removeOrderItem(this)">✕</button>`;
+  div.querySelector('.oi-product').addEventListener('change', function() { updateProductPrice(this); });
+  container.appendChild(div);
+  updateOrderTotal();
+}
+
+function removeOrderItem(btn) {
+  const rows = document.querySelectorAll('#orderItems .order-item-row');
+  if (rows.length <= 1) { showToast('至少保留一个产品项'); return; }
+  btn.closest('.order-item-row').remove();
+  updateOrderTotal();
+}
+
+function updateOrderTotal() {
+  let total = 0;
+  document.querySelectorAll('#orderItems .order-item-row').forEach(row => {
+    const qty = parseFloat(row.querySelector('.oi-qty')?.value) || 0;
+    const price = parseFloat(row.querySelector('.oi-price')?.value) || 0;
+    const span = row.querySelector('span');
+    if (span) span.textContent = fmtMoney(qty * price);
+    total += qty * price;
+  });
+  document.getElementById('orderTotal').textContent = '合计：' + fmtMoney(total);
+}
+
+function renderTimeline(o) {
+  const steps = document.querySelectorAll('#orderTimeline .tl-step');
+  if (!o) { steps.forEach(s => s.classList.remove('done','current')); return; }
+  const statusOrder = ['pending','confirmed','shipping','delivered'];
+  const curIdx = statusOrder.indexOf(o.status);
+  steps.forEach((s, i) => {
+    s.classList.remove('done','current');
+    if (i < curIdx) s.classList.add('done');
+    if (i === curIdx) s.classList.add('current');
+    s.onclick = function() {
+      const targetIdx = statusOrder.indexOf(this.dataset.status);
+      if (targetIdx === curIdx + 1) {
+        if (confirm(`确认将订单状态变更为「${statusName(this.dataset.status)}」？`)) {
+          changeStatus(o.id, this.dataset.status);
+          closeOrderModal();
+        }
+      } else if (targetIdx <= curIdx) {
+        showToast('无法回退到已完成的状态');
+      } else {
+        showToast('请按顺序推进状态');
+      }
+    };
+  });
+}
+
+function saveOrder() {
+  const customerId = document.getElementById('orderCustomer').value;
+  if (!customerId) { showToast('请选择客户'); return; }
+
+  const items = [];
+  document.querySelectorAll('#orderItems .order-item-row').forEach(row => {
+    const sel = row.querySelector('.oi-product');
+    const qty = parseFloat(row.querySelector('.oi-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.oi-price').value) || 0;
+    const productId = sel.value;
+    const productName = sel.options[sel.selectedIndex]?.text?.split(' (')[0] || '';
+    if (productId && qty > 0) items.push({ productId, productName, qty, unitPrice: price });
+  });
+  if (items.length === 0) { showToast('请添加至少一个产品项'); return; }
+
+  const totalAmount = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const status = document.getElementById('orderStatus').value;
+  const orders = STORE.orders();
+
+  if (editingOrderId) {
+    const idx = orders.findIndex(o => o.id === editingOrderId);
+    if (idx === -1) return;
+    const old = orders[idx];
+    orders[idx].customerId = customerId;
+    orders[idx].items = items;
+    orders[idx].totalAmount = totalAmount;
+    orders[idx].deliveryDate = document.getElementById('orderDeliveryDate').value;
+    orders[idx].notes = document.getElementById('orderNotes').value;
+    if (old.status !== status) {
+      orders[idx].status = status;
+      orders[idx].statusHistory.push({ status, timestamp: new Date().toISOString(), note: '手动变更状态' });
+    }
+  } else {
+    orders.push({
+      id: genId(), orderNo: genOrderNo(), customerId, items, totalAmount,
+      status: 'pending',
+      statusHistory: [{ status: 'pending', timestamp: new Date().toISOString(), note: '订单创建' }],
+      createdAt: new Date().toISOString(),
+      deliveryDate: document.getElementById('orderDeliveryDate').value,
+      notes: document.getElementById('orderNotes').value,
+    });
+  }
+
+  STORE.saveOrders(orders);
+  closeOrderModal();
+  renderOrders();
+  renderStats();
+  showToast(editingOrderId ? '订单已更新' : '订单已创建');
+}
+
+/* ================================================================
+   PRODUCTS
+   ================================================================ */
+let editingProductId = null;
+
+function renderProducts() {
+  let products = STORE.products();
+  const search = document.getElementById('productSearch').value.toLowerCase();
+  if (search) products = products.filter(p => p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search));
+
+  const tbody = document.getElementById('productTableBody');
+  if (products.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无产品数据</td></tr>';
+  } else {
+    tbody.innerHTML = products.map(p => `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;">${esc(p.sku)}</td>
+      <td>${esc(p.name)}</td>
+      <td style="font-weight:500;">${fmtMoney(p.price)}</td>
+      <td>${p.stock}</td>
+      <td>${esc(p.unit)}</td>
+      <td><div class="actions">
+        <button class="btn btn-xs" onclick="openProductModal('${p.id}')">编辑</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteProduct('${p.id}')">删除</button>
+      </div></td>
+    </tr>`).join('');
+  }
+}
+
+function openProductModal(id) {
+  editingProductId = id || null;
+  document.getElementById('productModalOverlay').classList.add('open');
+  document.getElementById('productModalTitle').textContent = id ? '编辑产品' : '新增产品';
+  if (id) {
+    const p = STORE.products().find(p => p.id === id);
+    if (!p) return;
+    document.getElementById('productSku').value = p.sku;
+    document.getElementById('productName').value = p.name;
+    document.getElementById('productPrice').value = p.price;
+    document.getElementById('productStock').value = p.stock;
+    document.getElementById('productUnit').value = p.unit;
+  } else {
+    ['productSku','productName','productPrice','productStock','productUnit'].forEach(f => document.getElementById(f).value = '');
+  }
+}
+
+function closeProductModal() {
+  document.getElementById('productModalOverlay').classList.remove('open');
+  editingProductId = null;
+}
+
+function saveProduct() {
+  const name = document.getElementById('productName').value.trim();
+  const sku = document.getElementById('productSku').value.trim();
+  if (!name || !sku) { showToast('请填写产品名称和SKU'); return; }
+
+  const data = {
+    id: editingProductId || genId(),
+    sku, name,
+    price: parseFloat(document.getElementById('productPrice').value) || 0,
+    stock: parseInt(document.getElementById('productStock').value) || 0,
+    unit: document.getElementById('productUnit').value.trim() || '件',
+  };
+
+  let products = STORE.products();
+  products = editingProductId ? products.map(p => p.id === editingProductId ? data : p) : [...products, data];
+  STORE.saveProducts(products);
+  closeProductModal();
+  renderProducts();
+  showToast(editingProductId ? '产品已更新' : '产品已添加');
+}
+
+function deleteProduct(id) {
+  if (STORE.orders().some(o => o.items.some(i => i.productId === id))) {
+    showToast('该产品已被订单使用，无法删除'); return;
+  }
+  if (!confirm('确定要删除此产品吗？')) return;
+  STORE.saveProducts(STORE.products().filter(p => p.id !== id));
+  renderProducts();
+  showToast('产品已删除');
+}
+
+/* ================================================================
+   CUSTOMERS
+   ================================================================ */
+let editingCustomerId = null;
+
+function renderCustomers() {
+  let customers = STORE.customers();
+  const search = document.getElementById('customerSearch').value.toLowerCase();
+  if (search) customers = customers.filter(c => c.name.toLowerCase().includes(search) || c.phone.includes(search));
+
+  const tbody = document.getElementById('customerTableBody');
+  if (customers.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无客户数据</td></tr>';
+  } else {
+    tbody.innerHTML = customers.map(c => `<tr>
+      <td style="font-weight:500;">${esc(c.name)}</td>
+      <td>${esc(c.contact)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;">${esc(c.phone)}</td>
+      <td>${esc(c.address)}</td>
+      <td>${esc(c.notes)}</td>
+      <td><div class="actions">
+        <button class="btn btn-xs" onclick="openCustomerModal('${c.id}')">编辑</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteCustomer('${c.id}')">删除</button>
+      </div></td>
+    </tr>`).join('');
+  }
+}
+
+function openCustomerModal(id) {
+  editingCustomerId = id || null;
+  document.getElementById('customerModalOverlay').classList.add('open');
+  document.getElementById('customerModalTitle').textContent = id ? '编辑客户' : '新增客户';
+  if (id) {
+    const c = STORE.customers().find(c => c.id === id);
+    if (!c) return;
+    document.getElementById('customerCName').value = c.name;
+    document.getElementById('customerContact').value = c.contact;
+    document.getElementById('customerPhone').value = c.phone;
+    document.getElementById('customerAddress').value = c.address;
+    document.getElementById('customerNotes').value = c.notes;
+  } else {
+    ['customerCName','customerContact','customerPhone','customerAddress','customerNotes'].forEach(f => document.getElementById(f).value = '');
+  }
+}
+
+function closeCustomerModal() {
+  document.getElementById('customerModalOverlay').classList.remove('open');
+  editingCustomerId = null;
+}
+
+function saveCustomer() {
+  const name = document.getElementById('customerCName').value.trim();
+  if (!name) { showToast('请填写客户名称'); return; }
+
+  const data = {
+    id: editingCustomerId || genId(),
+    name,
+    contact: document.getElementById('customerContact').value.trim(),
+    phone: document.getElementById('customerPhone').value.trim(),
+    address: document.getElementById('customerAddress').value.trim(),
+    notes: document.getElementById('customerNotes').value.trim(),
+  };
+
+  let customers = STORE.customers();
+  customers = editingCustomerId ? customers.map(c => c.id === editingCustomerId ? data : c) : [...customers, data];
+  STORE.saveCustomers(customers);
+  closeCustomerModal();
+  renderCustomers();
+  showToast(editingCustomerId ? '客户已更新' : '客户已添加');
+}
+
+function deleteCustomer(id) {
+  if (STORE.orders().some(o => o.customerId === id)) {
+    showToast('该客户有未删除的订单，请先删除相关订单'); return;
+  }
+  if (!confirm('确定要删除此客户吗？')) return;
+  STORE.saveCustomers(STORE.customers().filter(c => c.id !== id));
+  renderCustomers();
+  showToast('客户已删除');
+}
+
+/* ================================================================
+   IMPORT / EXPORT
+   ================================================================ */
+function exportData() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    products: STORE.products(),
+    customers: STORE.customers(),
+    orders: STORE.orders(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'sales-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('数据已导出');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.products || !data.customers || !data.orders) throw new Error('数据格式不完整');
+      if (!confirm(`即将导入：${data.products.length} 个产品、${data.customers.length} 个客户、${data.orders.length} 个订单。\n当前数据将被覆盖，确定继续？`)) return;
+      STORE.saveProducts(data.products);
+      STORE.saveCustomers(data.customers);
+      STORE.saveOrders(data.orders);
+      renderAll();
+      showToast('数据导入成功');
+    } catch (err) {
+      showToast('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* ================================================================
+   TABS
+   ================================================================ */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ================================================================
+   MODAL CLOSE ON OVERLAY CLICK & ESC
+   ================================================================ */
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target !== overlay) return;
+    overlay.classList.remove('open');
+    editingOrderId = null; editingProductId = null; editingCustomerId = null;
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal-overlay.open').forEach(o => {
+    o.classList.remove('open');
+    editingOrderId = null; editingProductId = null; editingCustomerId = null;
+  });
+});
+
+/* ================================================================
+   RENDER ALL
+   ================================================================ */
+function renderAll() { renderStats(); renderOrders(); renderProducts(); renderCustomers(); }
+
+/* ================================================================
+   INIT
+   ================================================================ */
+initSeedData();
+renderAll();
+</script>
+</body>
+</html>
